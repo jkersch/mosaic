@@ -4,13 +4,14 @@ from PIL import Image, ImageOps
 from multiprocessing import Process, Queue, cpu_count
 
 # Change these 3 config parameters to suit your needs...
-TILE_SIZE      = 50		# height/width of mosaic tiles in pixels
-TILE_MATCH_RES = 5		# tile matching resolution (higher values give better fit but require more processing)
-ENLARGEMENT    = 8		# the mosaic image will be this many times wider and taller than the original
+TILE_SIZE      = 240		# height/width of mosaic tiles in pixels
+TILE_MATCH_RES = 8		# tile matching resolution (higher values give better fit but require more processing)
+ENLARGEMENT    = 15		# the mosaic image will be this many times wider and taller than the original
 
 TILE_BLOCK_SIZE = TILE_SIZE / max(min(TILE_MATCH_RES, TILE_SIZE), 1)
-WORKER_COUNT = max(cpu_count() - 1, 1)
+WORKER_COUNT = 1 #max(cpu_count() - 1, 1)
 OUT_FILE = 'mosaic.jpeg'
+MAX_TILE_OCCURENCE = 6
 EOQ_VALUE = None
 
 class TileProcessor:
@@ -86,7 +87,7 @@ class TargetImage:
 class TileFitter:
 	def __init__(self, tiles_data):
 		self.tiles_data = tiles_data
-
+		self.tile_usage = [MAX_TILE_OCCURENCE] * len(tiles_data)
 	def __get_tile_diff(self, t1, t2, bail_out_value):
 		diff = 0
 		for i in range(len(t1)):
@@ -105,11 +106,12 @@ class TileFitter:
 		# go through each tile in turn looking for the best match for the part of the image represented by 'img_data'
 		for tile_data in self.tiles_data:
 			diff = self.__get_tile_diff(img_data, tile_data, min_diff)
-			if diff < min_diff:
+			if(diff < min_diff and self.tile_usage[tile_index] > 0):
 				min_diff = diff
 				best_fit_tile_index = tile_index
 			tile_index += 1
-
+		if(best_fit_tile_index != None):
+			self.tile_usage[best_fit_tile_index] -= 1
 		return best_fit_tile_index
 
 def fit_tiles(work_queue, result_queue, tiles_data):
@@ -213,10 +215,11 @@ def compose(original_img, tiles):
 			work_queue.put((EOQ_VALUE, EOQ_VALUE))
 
 def mosaic(img_path, tiles_path):
+	
 	image_data = TargetImage(img_path).get_data()
 	tiles_data = TileProcessor(tiles_path).get_tiles()
 	compose(image_data, tiles_data)
-
+	
 if __name__ == '__main__':
 	if len(sys.argv) < 3:
 		print('Usage: {} <image> <tiles directory>\r'.format(sys.argv[0]))
