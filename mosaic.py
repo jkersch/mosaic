@@ -168,9 +168,11 @@ def build_mosaic(result_queue, all_tile_data_large, original_img_large):
 				if not active_workers:
 					break
 			else:
-				tile_data = all_tile_data_large[best_fit_tile_index]
-				mosaic.add_tile(tile_data, img_coords)
-
+				if (best_fit_tile_index != None):
+					tile_data = all_tile_data_large[best_fit_tile_index]
+					mosaic.add_tile(tile_data, img_coords)
+				else:
+					print("WARN: could not find a best fit for Tile {}".format(img_coords))
 		except KeyboardInterrupt:
 			pass
 
